@@ -38,6 +38,18 @@ import collections
 import sys, getopt
 import logging
 import binascii
+from retry import retry
+
+class MilightError(Exception):
+  """Milight 3.0 Wifi Bridge Error class
+
+  Class is used to raise custom errors if excution fails
+  """
+  def __init__(self, value):
+    self.value = value
+  def __str__(self):
+    return repr(self.value)
+
 
 class MilightWifiBridge:
   """Milight 3.0 Wifi Bridge class
@@ -79,6 +91,11 @@ class MilightWifiBridge:
     LIME = 0x54
     YELLOW = 0x3B
     ORANGE = 0x1E
+
+  ######################### retry parameters #########################
+  __RETRY_COUNT = 10
+  __RETRY_DELAY = 0.5
+  __RETRY_BACKOFF = 2
 
   ######################### static variables/static functions/internal struct #########################
   __START_SESSION_MSG = bytearray([0x20, 0x00, 0x00, 0x00, 0x16, 0x02, 0x62, 0x3A, 0xD5, 0xED, 0xA3, 0x01, 0xAE, 0x08,
@@ -344,11 +361,15 @@ class MilightWifiBridge:
       logging.debug("UDP connection initialized with ip {} and port {}".format(str(ip), str(port)))
     except (socket.error, socket.herror, socket.gaierror, socket.timeout) as err:
       logging.error("Impossible to initialize the UDP connection with ip {} and port {}: {}".format(str(ip), str(port), str(err)))
-
+      
     return self.__initialized
 
-
   ######################### INTERNAL UTILITY FUNCTIONS #########################
+  @retry(MilightError, 
+         tries=__RETRY_COUNT,
+         delay=__RETRY_DELAY,
+         backoff=__RETRY_BACKOFF
+         )
   def __startSession(self):
     """Send start session request and return start session information
 
@@ -379,12 +400,18 @@ class MilightWifiBridge:
         logging.debug("Start session (mac address: {}, session ID 1: {}, session ID 2: {})"
                       .format(str(response.mac), str(response.sessionId1), str(response.sessionId2)))
       else:
-        logging.warning("Invalid start session response size")
+        logging.error("Invalid start session response size")
+        #raise MilightError("Invalid start session response size")
     except socket.timeout:
       logging.warning("Timed out for start session response")
 
     return response
 
+  @retry(MilightError, 
+         tries=__RETRY_COUNT,
+         delay=__RETRY_DELAY,
+         backoff=__RETRY_BACKOFF
+         )
   def __sendRequest(self, command, zoneId):
     """Send command to a specific zone and get response (ACK from the wifi bridge)
 
@@ -427,14 +454,18 @@ class MilightWifiBridge:
                 returnValue = True
                 logging.debug("Received valid response for previously sent request")
               else:
-                logging.warning("Invalid sequence number ack {} instead of {}".format(str(data[6]),
+                logging.error("Invalid sequence number ack {} instead of {}".format(str(data[6]),
                                                                                       self.__sequence_number))
+                #self.__sequence_number = int(data[6])
+                #raise MilightError("Invalid sequence number")
             else:
               logging.warning("Invalid response size {} instead of 8".format(str(len(data))))
           except socket.timeout:
             logging.warning("Timed out for response")
+            raise MilightError("Timed out for response")
         else:
           logging.warning("Start session failed")
+          raise MilightError("Start session failed")
       else:
         logging.error("Invalid zone {} (must be between 0 and 4)".format(str(zoneId)))
     else:

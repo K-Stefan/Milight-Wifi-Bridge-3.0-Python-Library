@@ -94,8 +94,8 @@ class MilightWifiBridge:
 
   ######################### retry parameters #########################
   __RETRY_COUNT = 10
-  __RETRY_DELAY = 1
-  __RETRY_BACKOFF = 0.5
+  __RETRY_DELAY = 0.5
+  __RETRY_BACKOFF = 2
 
   ######################### static variables/static functions/internal struct #########################
   __START_SESSION_MSG = bytearray([0x20, 0x00, 0x00, 0x00, 0x16, 0x02, 0x62, 0x3A, 0xD5, 0xED, 0xA3, 0x01, 0xAE, 0x08,
@@ -401,7 +401,7 @@ class MilightWifiBridge:
                       .format(str(response.mac), str(response.sessionId1), str(response.sessionId2)))
       else:
         logging.error("Invalid start session response size")
-        raise MilightError("Invalid start session response size")
+        #raise MilightError("Invalid start session response size")
     except socket.timeout:
       logging.warning("Timed out for start session response")
 
@@ -456,14 +456,16 @@ class MilightWifiBridge:
               else:
                 logging.error("Invalid sequence number ack {} instead of {}".format(str(data[6]),
                                                                                       self.__sequence_number))
-                self.__sequence_number = int(data[6])
-                raise MilightError("Invlaid sequence number")
+                #self.__sequence_number = int(data[6])
+                #raise MilightError("Invalid sequence number")
             else:
               logging.warning("Invalid response size {} instead of 8".format(str(len(data))))
           except socket.timeout:
             logging.warning("Timed out for response")
+            raise MilightError("Timed out for response")
         else:
           logging.warning("Start session failed")
+          raise MilightError("Start session failed")
       else:
         logging.error("Invalid zone {} (must be between 0 and 4)".format(str(zoneId)))
     else:

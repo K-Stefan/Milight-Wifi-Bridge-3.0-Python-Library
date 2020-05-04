@@ -39,7 +39,7 @@ setup(
     keywords='milight bulbs home automation limitlessled ibox link unlink light night white color saturation brightness disco mode speed mac',
     packages=["MilightWifiBridge"],
     platforms='any',
-    install_requires=[],
+    install_requires=["retry"],
     tests_require=["mock"],
     test_suite="tests",
 )
